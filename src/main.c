@@ -1,12 +1,9 @@
-
 #include <stdio.h>
-
 #include "header.h"
 
 const unsigned char font[] = {
-    #include "../generator/build/raster-h32_8.txt"
+    #include "../generator/build/raster-h32_1.txt"
 };
-
 
 char getPixel(const unsigned char* inBuffer, char inChar, char charWidth, char charHeight, char resolution, int x, int y) {
 
@@ -15,17 +12,16 @@ char getPixel(const unsigned char* inBuffer, char inChar, char charWidth, char c
 
     const int pix = (x + y * charWidth) * resolution;
 
-    const int shift = pix % 8;
+    const int shift = pix & 7;
 
     const unsigned char mask = (1 << resolution) - 1;
 
     unsigned char val = (fontBuff[pix >> 3] >> shift) & mask;
 
     //val = (val * 255) / ((1 << resolution) - 1);
+    //val = (val << 8) / (1 << resolution);
 
-    val = (val << 8) / (1 << resolution);
-
-    return val;
+    return (val << 8) >> resolution;
 }
 
 int main(int argc, const char* argv[]) {
@@ -41,7 +37,7 @@ int main(int argc, const char* argv[]) {
 
         for (int x = 0; x < header->char_width; x++) {
 
-            const unsigned char pixel = getPixel(font + 16, 'G', header->char_width, header->char_height, 1 << header->alpha_full, x, y);
+            const unsigned char pixel = getPixel(font + 16, 'r', header->char_width, header->char_height, 1 << header->alpha_full, x, y);
 
             if (pixel == 0) {
                 printf(" ");
@@ -53,7 +49,7 @@ int main(int argc, const char* argv[]) {
                 printf("*");
             }
             else {
-                printf("X");
+                printf("@");
             }
 
         }
