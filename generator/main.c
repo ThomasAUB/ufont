@@ -34,7 +34,7 @@ int main(int argc, const char* argv[]) {
     const char* fonFileName = "../../font/Inconsolata-Regular.ttf";
     int height = 32;
     int width = 0;
-    int bitResolution = 1;
+    int bitResolution = 8;
 
     if (argc == 4) {
         /*

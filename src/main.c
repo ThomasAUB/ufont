@@ -1,82 +1,63 @@
 
 #include <stdio.h>
 
-const char font[] = {
+#include "header.h"
+
+const unsigned char font[] = {
     #include "../generator/build/raster-h32_8.txt"
 };
 
+
+char getPixel(const unsigned char* inBuffer, char inChar, char charWidth, char charHeight, char resolution, int x, int y) {
+
+    const unsigned int offset = ((inChar - ' ') * charWidth * charHeight * resolution) / 8;
+    const unsigned char* fontBuff = inBuffer + offset;
+
+    const int pix = (x + y * charWidth) * resolution;
+
+    const int shift = pix % 8;
+
+    const unsigned char mask = (1 << resolution) - 1;
+
+    unsigned char val = (fontBuff[pix >> 3] >> shift) & mask;
+
+    //val = (val * 255) / ((1 << resolution) - 1);
+
+    val = (val << 8) / (1 << resolution);
+
+    return val;
+}
+
 int main(int argc, const char* argv[]) {
-
-    struct {
-
-        unsigned char version;
-        unsigned char width;
-        unsigned char height;
-
-        // | b | b | b | b | f | a | a | a |
-
-        unsigned char alpha_full; // [3 bits for alpha channel, 1 bit to tell is it has a table or not
-
-        unsigned char field[12];
-        //unsigned char table[193];
-
-    } typedef binheader;
 
     binheader* header = (binheader*) font;
 
-
-    printf("header :\n");
     printf("version : %d\n", header->version);
-    printf("width : %d\n", header->width);
-    printf("height : %d\n", header->height);
+    printf("width : %d\n", header->char_width);
+    printf("height : %d\n", header->char_height);
     printf("alpha_full : %d\n", header->alpha_full);
 
-    unsigned char* fontBuff = font + 16;
+    for (int y = 0; y < header->char_height; y++) {
 
-    unsigned char buff[160];
+        for (int x = 0; x < header->char_width; x++) {
 
-    for (int i = 0; i < header->width; i++) {
-        if (fontBuff[i]) {
-            printf("*");
-        }
-        else {
-            printf(" ");
-        }
-    }
+            const unsigned char pixel = getPixel(font + 16, 'G', header->char_width, header->char_height, 1 << header->alpha_full, x, y);
 
-    /*
-        for (int y = 16; y < header->height * header->width * 95; y++) {
-
-            if (font[y]) {
+            if (pixel == 0) {
+                printf(" ");
+            }
+            else if (pixel < 255 / 3) {
+                printf(".");
+            }
+            else if (pixel < (255 * 2) / 3) {
                 printf("*");
             }
             else {
-                printf(" ");
-            }
-
-
-            if (y % (160 + 16) == 0) {
-                printf("\n");
+                printf("X");
             }
 
         }
-    */
-    /*
-    int i = 16;
-    int i2 = 0;
-    for (int y = 0; y < header->height; y++) {
-
-        i2 = 0;
-
-        for (; i < header->width; i++) {
-            buff[i2] = '0' + font[y * i];
-            i2++;
-        }
-
-        printf(buff);
-
+        printf("\n");
     }
-*/
-
 
 }
