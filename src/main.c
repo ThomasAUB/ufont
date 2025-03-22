@@ -2,7 +2,7 @@
 #include "header.h"
 
 const unsigned char font[] = {
-    #include "../generator/build/raster-h32_1.txt"
+    #include "../generator/build/raster-h32_8.txt"
 };
 
 char getPixel(const unsigned char* inBuffer, char inChar, char charWidth, char charHeight, char resolution, int x, int y) {
@@ -14,12 +14,7 @@ char getPixel(const unsigned char* inBuffer, char inChar, char charWidth, char c
 
     const int shift = pix & 7;
 
-    const unsigned char mask = (1 << resolution) - 1;
-
-    unsigned char val = (fontBuff[pix >> 3] >> shift) & mask;
-
-    //val = (val * 255) / ((1 << resolution) - 1);
-    //val = (val << 8) / (1 << resolution);
+    unsigned char val = (fontBuff[pix >> 3] >> shift);
 
     return (val << 8) >> resolution;
 }
@@ -37,7 +32,7 @@ int main(int argc, const char* argv[]) {
 
         for (int x = 0; x < header->char_width; x++) {
 
-            const unsigned char pixel = getPixel(font + 16, 'r', header->char_width, header->char_height, 1 << header->alpha_full, x, y);
+            const unsigned char pixel = getPixel(font + 16, 'a', header->char_width, header->char_height, 1 << header->alpha_full, x, y);
 
             if (pixel == 0) {
                 printf(" ");

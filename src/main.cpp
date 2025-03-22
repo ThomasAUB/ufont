@@ -11,30 +11,25 @@ struct CharRaster {
     CharRaster(const uint8_t* inBuffer, char inChar) :
         kCharWidth(((binheader*) inBuffer)->char_width),
         kCharHeight(((binheader*) inBuffer)->char_height),
-        kBitResolution(1 << ((binheader*) inBuffer)->alpha_full),
+        kBitResolution(((binheader*) inBuffer)->alpha_full),
         kBuffer(
-            inBuffer + 16 +
+            inBuffer +
+            16 +
             (
-                ((inChar - ' ') * kCharWidth * kCharHeight * kBitResolution) >> 3
+                ((inChar - ' ') * kCharWidth * kCharHeight * (1 << ((binheader*) inBuffer)->alpha_full)) >> 3
             )
         )
     {}
 
     uint8_t getPixel(uint8_t inX, uint8_t inY) {
-        const int pix = (inX + inY * kCharWidth) * kBitResolution;
-        const int shift = pix & 7;
-        const unsigned char mask = (1 << kBitResolution) - 1;
-        unsigned char val = (kBuffer[pix >> 3] >> shift) & mask;
-        return (val << 8) >> kBitResolution;
-    }
-    
-    uint8_t width() const {
-        return kCharWidth;
+        const uint32_t pix = (inX + inY * kCharWidth) << kBitResolution;
+        const uint8_t val = (kBuffer[pix >> 3] >> (pix & 7));
+        return (val << 8) >> (1 << kBitResolution);
     }
 
-    uint8_t height() const {
-        return kCharHeight;
-    }
+    uint8_t width() const { return kCharWidth; }
+
+    uint8_t height() const { return kCharHeight; }
 
 private:
     const uint8_t kCharWidth;
@@ -43,18 +38,10 @@ private:
     const uint8_t* kBuffer;
 };
 
+
 int main() {
-/*
-    binheader* header = (binheader*) font;
 
-    printf("version : %d\n", header->version);
-    printf("width : %d\n", header->char_width);
-    printf("height : %d\n", header->char_height);
-    printf("alpha_full : %d\n", header->alpha_full);
-*/
-    //CharRaster raster(font + 16, 'r', header->char_width, header->char_height, 1 << header->alpha_full);
-
-    CharRaster raster(font, 'r');
+    CharRaster raster(font, 'o');
 
     for (int y = 0; y < raster.height(); y++) {
 
