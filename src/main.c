@@ -7,7 +7,7 @@ const unsigned char font[] = {
 
 char getPixel(const unsigned char* inBuffer, char inChar, char charWidth, char charHeight, char resolution, int x, int y) {
 
-    const unsigned int offset = ((inChar - ' ') * charWidth * charHeight * resolution) / 8;
+    const unsigned int offset = ((inChar - ' ') * charWidth * charHeight * resolution) >> 3;
     const unsigned char* fontBuff = inBuffer + offset;
 
     const int pix = (x + y * charWidth) * resolution;
