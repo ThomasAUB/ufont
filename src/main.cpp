@@ -1,6 +1,5 @@
 #include <iostream>
 #include <stdint.h>
-#include "header.h"
 
 static constexpr uint8_t font[] = {
     #include "../generator/build/raster-h32_8.txt"
@@ -8,28 +7,30 @@ static constexpr uint8_t font[] = {
 
 struct CharRaster {
 
-    CharRaster(const uint8_t* inBuffer, char inChar) :
-        kCharWidth(((binheader*) inBuffer)->char_width),
-        kCharHeight(((binheader*) inBuffer)->char_height),
-        kBitResolution(((binheader*) inBuffer)->alpha_full),
+    constexpr CharRaster(const uint8_t* inBuffer, char inChar) :
+        kCharWidth(*(inBuffer + 1)),
+        kCharHeight(*(inBuffer + 2)),
+        kBitResolution(*(inBuffer + 3) & 3),
         kBuffer(
             inBuffer +
             16 +
             (
-                ((inChar - ' ') * kCharWidth * kCharHeight * (1 << ((binheader*) inBuffer)->alpha_full)) >> 3
+                ((inChar - ' ') * kCharWidth * kCharHeight * (1 << kBitResolution)) >> 3
             )
         )
     {}
 
-    uint8_t getPixel(uint8_t inX, uint8_t inY) {
+    constexpr uint8_t getPixel(uint8_t inX, uint8_t inY) const {
         const uint32_t pix = (inX + inY * kCharWidth) << kBitResolution;
         const uint8_t val = (kBuffer[pix >> 3] >> (pix & 7));
         return (val << 8) >> (1 << kBitResolution);
     }
 
-    uint8_t width() const { return kCharWidth; }
+    constexpr uint8_t width() const { return kCharWidth; }
 
-    uint8_t height() const { return kCharHeight; }
+    constexpr uint8_t height() const { return kCharHeight; }
+
+    constexpr uint8_t resolution() const { return 1 << kBitResolution; }
 
 private:
     const uint8_t kCharWidth;
@@ -41,7 +42,14 @@ private:
 
 int main() {
 
-    CharRaster raster(font, 'o');
+    static constexpr CharRaster raster(font, '4');
+
+    static_assert(raster.width() == 15, "ERR");
+    static_assert(raster.height() == 32, "ERR");
+    //static_assert(raster.resolution() == 2, "ERR");
+
+
+    static constexpr char kOpChar[] = {" `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@"};
 
     for (int y = 0; y < raster.height(); y++) {
 
@@ -49,21 +57,23 @@ int main() {
 
             const unsigned char pixel = raster.getPixel(x, y);
 
+            //std::cout << kOpChar[(pixel * pixel * (sizeof(kOpChar) - 1)) / (0xFF * 0xFF)];
+
             if (pixel == 0) {
-                printf(" ");
+                std::cout << " ";
             }
             else if (pixel < 255 / 3) {
-                printf(".");
+                std::cout << ".";
             }
             else if (pixel < (255 * 2) / 3) {
-                printf("*");
+                std::cout << "*";
             }
             else {
-                printf("@");
+                std::cout << "@";
             }
 
         }
-        printf("\n");
+        std::cout << std::endl;
     }
 
 }
