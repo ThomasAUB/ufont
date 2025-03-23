@@ -3,11 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include <math.h>
+#define STB_IMAGE_STATIC
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h" // http://nothings.org/stb/stb_image_write.h 
-
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -15,221 +14,99 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h" // http://nothings.org/stb/stb_truetype.h 
 
-#include "../src/header.h"
+#include "ufnt_writer.h"
 
-static const int startCharIndex = 32;
-static const int endCharIndex = 127;
-static const int charCount = endCharIndex - startCharIndex;
+int writeImage(const char* inFontPath, const char* inFileName, int inCharHeight, unsigned char bitResolution, const char* inAuthChars);
 
-int renderFont(unsigned char* fontBuffer, int inCharHeight, unsigned char bitResolution);
+void writeBMPFile(const char* inFontPath, int imgWidth, int imgHeight, unsigned char* img, unsigned char resolution);
 
-int writeImage(const char* inFontName, const char* inFileName, int inCharHeight, unsigned char bitResolution);
-
-int writeBinaryFile(const char* inBMPFileName, const char* inBinFileName, int inCharHeight, int inCharWidth, int inBitResolution);
-
-void writeBMPFile(const char* inFileName, int imgWidth, int imgHeight, unsigned char* img, unsigned char resolution);
+void createCharTable(const char* inAuthChars, int inAuthCharsCount, char* ioSortedTable);
 
 int main(int argc, const char* argv[]) {
 
-    const char* fonFileName = "../../font/Inconsolata-Regular.ttf";
+    const char* fontFilePath = "../../font/Inconsolata-Regular.ttf";
     int height = 32;
     int width = 0;
-    int bitResolution = 8;
+    unsigned char bitResolution = 8;
 
-    if (argc == 4) {
-        /*
-                printf("usage: %s font.ttf height [width]\n", argv[0]);
-                printf("\n");
-                printf("       rasterizes the provided ttf font into cells with specified height in pixels\n");
-                printf("       if width is provided, it overrides the auto detected value\n");
-                printf("       the generated raster data is printed on the standard output\n");
-                return -1;
-        */
+    char charTable[96] = {
+        0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+        0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F,
+        0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
+        0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F
+    };
 
-        //argv[1] = "../../font/Inconsolata-Regular.ttf";
-        //argv[2] = "32";
-        //argv[3] = "8";
+    switch (argc) {
 
-        fonFileName = argv[1];
-        height = atoi(argv[2]);
-        bitResolution = atoi(argv[3]);
+        case 5:
+            createCharTable(argv[4], strnlen(argv[4], 95), charTable);
+        case 4:
+            bitResolution = atoi(argv[3]);
+        case 3:
+            height = atoi(argv[2]);
+        case 2:
+            fontFilePath = argv[1];
+            break;
+
+        default:
+            printf("usage: %s font.ttf height [width]\n", argv[0]);
+            printf("\n");
+            printf("       rasterizes the provided ttf font into cells with specified height in pixels\n");
+            printf("       if width is provided, it overrides the auto detected value\n");
+            printf("       the generated raster data is printed on the standard output\n");
+            break;
+    }
+
+    char filename[128];
+    {
+
+        { // extract file name
+            char* lastDashPos = strrchr(fontFilePath, '/');
+
+            if (lastDashPos) {
+                strcpy(filename, lastDashPos + 1);
+            }
+        }
+
+        { // remove file extension
+            char* lastDotPos = strrchr(filename, '.');
+
+            if (lastDotPos) {
+                *lastDotPos = 0;
+            }
+        }
+
     }
 
     char bmpFileName[128];
-    snprintf(bmpFileName, 128, "raster-h%d_%d.bmp", height, bitResolution);
+    snprintf(bmpFileName, 128, "%s-h%d_r%d.bmp", filename, height, bitResolution);
 
     char binFileName[128];
-    snprintf(binFileName, 128, "raster-h%d_%d.txt", height, bitResolution);
+    snprintf(binFileName, 128, "%s-h%d_r%d.ufnt", filename, height, bitResolution);
 
-
-    int result = writeImage(fonFileName, bmpFileName, height, bitResolution);
+    int result = writeImage(fontFilePath, bmpFileName, height, bitResolution, charTable);
 
     if (result != 0) {
         return result;
     }
 
-    writeBinaryFile(bmpFileName, binFileName, height, width, bitResolution);
-
-    return 0;
+    return writeUFNTFile(bmpFileName, binFileName, bitResolution, charTable);
 }
 
-void writeHexa(FILE* inFile, unsigned char byte, char addComa) {
-    char buff[5];
-    sprintf(buff, "0x%02X", byte);
-    fwrite(buff, 1, strlen(buff), inFile);
-    if (addComa) {
-        fwrite(", ", 1, strlen(", "), inFile);
-    }
-}
-
-int writeBinaryFile(const char* inBMPFileName, const char* inBinFileName, int inCharHeight, int inCharWidth, int inBitResolution) {
-
-    int bmp_width;
-    int bmp_height;
-    int channels;
-
-    unsigned char* img = stbi_load(inBMPFileName, &bmp_width, &bmp_height, &channels, 0);
-
-    if (img == 0) {
-        return -1;
-    }
-
-    FILE* binFile = fopen(inBinFileName, "w");
-
-    if (!binFile) {
-        printf("couldn't create binary file");
-        return -1;
-    }
-
-    binheader h;
-
-    h.version = 0;
-    h.char_width = bmp_width / charCount;
-    h.char_height = bmp_height;
-
-    switch (inBitResolution) {
-
-        case 1:
-            h.alpha_full = 0; // 1 bit
-            break;
-
-        case 2:
-        case 3:
-            h.alpha_full = 1; // 2 bits
-            inBitResolution = 2;
-            break;
-
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-            h.alpha_full = 2; // 4 bits
-            inBitResolution = 4;
-            break;
-
-        default:
-            h.alpha_full = 3; // 8 bits
-            inBitResolution = 8;
-            break;
-    }
-
-    // enable all chars
-    for (int i = 0; i < sizeof(h.field); i++) {
-        h.field[i] = 255;
-    }
-
-    // write readable file
-    const char* c_header = "#pragma once\nconst char* fnt = {";
-    //fwrite(c_header, 1, strlen(c_header), binFile);
-
-    // write header
-    for (int i = 0; i < 16; i++) {
-        writeHexa(binFile, ((uint8_t*) &h)[i], 1);
-    }
-
-    fwrite("\n", 1, 1, binFile);
-
-    const int max = (1 << inBitResolution) - 1;
-
-    uint8_t byte = 0;
-    uint8_t shift = 0;
-
-    uint8_t lineCounter = 0;
-
-    for (int counter = 0; counter < charCount; counter++) {
-
-        const unsigned int xStart = counter * h.char_width;
-
-        for (unsigned int _y = 0; _y < h.char_height; _y++) {
-
-            unsigned int pixel = (_y * bmp_width + xStart) * 3;
-
-            for (unsigned int _x = 0; _x < h.char_width; _x++) {
-
-                unsigned char c = img[pixel];
-
-                pixel += 3;
-
-                /*
-                if (c == 0) {
-                    fwrite(" ", 1, strlen("\n"), binFile);
-                }
-                else if (c < 128) {
-                    fwrite(".", 1, strlen("\n"), binFile);
-                }
-                else {
-                    fwrite("X", 1, strlen("\n"), binFile);
-                }
-                */
-
-                byte |= ((c * max + 127) / 255) << shift;
-                shift += inBitResolution;
-
-                if (shift == 8) {
-
-                    // store byte
-                    writeHexa(binFile, byte, pixel < (3 * bmp_width * bmp_height));
-
-                    shift = 0;
-                    byte = 0;
-
-                    if (++lineCounter == 16) {
-                        fwrite("\n", 1, strlen("\n"), binFile);
-                        lineCounter = 0;
-                    }
-
-                }
-
-            }
-
-            //fwrite("\n", 1, strlen("\n"), binFile);
-        }
-    }
-
-    if (shift != 0) {
-        writeHexa(binFile, byte, 0);
-    }
-
-    stbi_image_free(img);
-    fclose(binFile);
-
-    return 0;
-}
-
-int writeImage(const char* inFontName, const char* inFileName, int inCharHeight, unsigned char bitResolution) {
+int writeImage(const char* inFontPath, const char* inFileName, int inCharHeight, unsigned char bitResolution, const char* inAuthChars) {
 
     unsigned char* fontBuffer;
 
     // load font file //
     {
         long size;
-        FILE* fontFile = fopen(inFontName, "rb");
+        FILE* fontFile = fopen(inFontPath, "rb");
         fseek(fontFile, 0, SEEK_END);
         size = ftell(fontFile);
         fseek(fontFile, 0, SEEK_SET);
-
         fontBuffer = malloc(size);
-
         fread(fontBuffer, size, 1, fontFile);
         fclose(fontFile);
     }
@@ -250,7 +127,11 @@ int writeImage(const char* inFontName, const char* inFileName, int inCharHeight,
     float scale = stbtt_ScaleForPixelHeight(&info, c_h);
 
     // determine max char width
-    for (unsigned char ch = startCharIndex; ch < endCharIndex; ++ch) {
+    const int kAuthCharsCount = strnlen(inAuthChars, 95);
+    for (unsigned char i = 0; i < kAuthCharsCount; ++i) {
+
+        unsigned char ch = inAuthChars[i];
+
         int ax;
         int lsb;
         stbtt_GetCodepointHMetrics(&info, ch, &ax, &lsb);
@@ -259,7 +140,7 @@ int writeImage(const char* inFontName, const char* inFileName, int inCharHeight,
         }
     }
 
-    b_w = charCount * c_w;
+    b_w = kAuthCharsCount * c_w;
 
     // create a bitmap for the phrase
     unsigned char* bitmap = calloc(b_w * b_h, sizeof(unsigned char));
@@ -271,12 +152,10 @@ int writeImage(const char* inFontName, const char* inFileName, int inCharHeight,
     ascent *= scale;
     descent *= scale;
 
-    // begin C constants output
-    //printf("static const int FONT_SIZE_X = %d;\n", c_w);
-    //printf("static const int FONT_SIZE_Y = %d;\n\n", c_h);
-    //printf("static const unsigned char kFontRaster[128][FONT_SIZE_Y*FONT_SIZE_X] = {\n");
+    for (unsigned char i = 0; i < kAuthCharsCount; ++i) {
 
-    for (unsigned char ch = startCharIndex; ch < endCharIndex; ++ch) {
+        unsigned char ch = inAuthChars[i];
+
         // how wide is this character
         int ax;
         int lsb;
@@ -294,40 +173,19 @@ int writeImage(const char* inFontName, const char* inFileName, int inCharHeight,
         int byteOffset = x + (lsb * scale) + (y * b_w);
         stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, b_w, scale, scale, ch);
 
-        // output C array data
-        //printf("    {");
-        //for (int yy = 0; yy < c_h; ++yy) {
-        //    for (int xx = 0; xx < c_w; ++xx) {
-        //        int v = bitmap[byteOffset + (yy - y) * b_w + xx];
-        //        printf(" %3d,", v);
-        //        if (v > 0 && xx > maxx) {
-        //            maxx = xx;
-        //        }
-        //    }
-        //}
-        //printf(" }, // U+%04d\n", ch);
-
         // advance x
         //x += ax*scale; // use true character width
         x += c_w; // force mono-space width
 
         // add kerning
-        if (ch < endCharIndex - 1) {
+        if (i < kAuthCharsCount - 1) {
             int kern;
             kern = stbtt_GetCodepointKernAdvance(&info, ch, ch + 1);
             x += kern * scale;
         }
     }
 
-    //printf("};\n");
-
-    //if (maxx + 1 < c_w) {
-    //    printf("// warning : max character width was %d. consider lowering the width parameter to this value\n", maxx + 1);
-    //}
-
-    //writeBMPFile(inFileName, b_w, b_h, bitmap, 8);
     writeBMPFile(inFileName, b_w, b_h, bitmap, bitResolution);
-
 
     free(fontBuffer);
     free(bitmap);
@@ -335,110 +193,38 @@ int writeImage(const char* inFontName, const char* inFileName, int inCharHeight,
     return 0;
 }
 
-void writeBMPFile(const char* inFileName, int imgWidth, int imgHeight, unsigned char* img, unsigned char bitResolution) {
-
-    const unsigned char max = ((1 << bitResolution) - 1);
-    const unsigned char halfMax = max >> 1;
+void writeBMPFile(const char* inFontPath, int imgWidth, int imgHeight, unsigned char* img, unsigned char bitResolution) {
 
     for (int i = 0; i < imgWidth * imgHeight; i++) {
-        unsigned char csq = (img[i] * max + 127) / 255;
-        csq = (csq * 255 + halfMax) / max;
+
+        // extract MSBs
+        unsigned char csq = img[i] >> (8 - bitResolution);
+
+        // fill byte with MSBs
+        for (unsigned char r = bitResolution; r < 8; r *= 2) {
+            csq |= csq << r;
+        }
+
         img[i] = csq;
     }
 
     // save out a 1 channel image
-    stbi_write_bmp(inFileName, imgWidth, imgHeight, 1, img);
+    stbi_write_bmp(inFontPath, imgWidth, imgHeight, 1, img);
 
 }
 
-int renderFont(unsigned char* fontBuffer, int inCharHeight, unsigned char bitResolution) {
+void createCharTable(const char* inAuthChars, int inAuthCharsCount, char* ioSortedTable) {
 
-    // prepare font
-    stbtt_fontinfo info;
-    if (!stbtt_InitFont(&info, fontBuffer, 0)) {
-        printf("failed to load ttf font\n");
-        return -2;
-    }
+    int tableIndex = 0;
 
-    int b_w = 0; // bitmap width
-    int b_h = inCharHeight; // bitmap height
-    int c_w = 0; // char width
-    int c_h = inCharHeight; // char height
+    memset(ioSortedTable, 0, strlen(ioSortedTable));
 
-    // calculate font scaling
-    float scale = stbtt_ScaleForPixelHeight(&info, c_h);
-
-    if (c_w == 0) {
-        // determine max char width
-        for (unsigned char ch = startCharIndex; ch < endCharIndex; ++ch) {
-            int ax;
-            int lsb;
-            stbtt_GetCodepointHMetrics(&info, ch, &ax, &lsb);
-            if (c_w < ax * scale) {
-                c_w = ax * scale;
+    for (char c = ' '; c < 127; c++) {
+        for (int i = 0; i <= inAuthCharsCount; i++) {
+            if (inAuthChars[i] == c) {
+                ioSortedTable[tableIndex++] = c;
+                break;
             }
         }
     }
-
-    b_w = charCount * c_w;
-
-    // create a bitmap for the phrase
-    unsigned char* bitmap = calloc(b_w * b_h, sizeof(unsigned char));
-
-    int x = 0, maxx = 0;
-    int ascent, descent, lineGap;
-    stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
-
-    ascent *= scale;
-    descent *= scale;
-
-    // begin C constants output
-    //printf("static const int FONT_SIZE_X = %d;\n", c_w);
-    //printf("static const int FONT_SIZE_Y = %d;\n\n", c_h);
-    //printf("static const unsigned char kFontRaster[128][FONT_SIZE_Y*FONT_SIZE_X] = {\n");
-
-    for (unsigned char ch = startCharIndex; ch < endCharIndex; ++ch) {
-        // how wide is this character
-        int ax;
-        int lsb;
-        stbtt_GetCodepointHMetrics(&info, ch, &ax, &lsb);
-
-        // get bounding box for character (may be offset to account for chars that dip above or below the line
-        int c_x1, c_y1, c_x2, c_y2;
-        stbtt_GetCodepointBitmapBox(&info, ch, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
-
-        // compute y (different characters have different heights
-        int y = ascent + c_y1;
-        if (y < 0) y = 0;
-
-        // render character (stride and offset is important here)
-        int byteOffset = x + (lsb * scale) + (y * b_w);
-        stbtt_MakeCodepointBitmap(&info, bitmap + byteOffset, c_x2 - c_x1, c_y2 - c_y1, b_w, scale, scale, ch);
-
-        // output C array data
-        //printf("    {");
-        //for (int yy = 0; yy < c_h; ++yy) {
-        //    for (int xx = 0; xx < c_w; ++xx) {
-        //        int v = bitmap[byteOffset + (yy - y) * b_w + xx];
-        //        printf(" %3d,", v);
-        //        if (v > 0 && xx > maxx) {
-        //            maxx = xx;
-        //        }
-        //    }
-        //}
-        //printf(" }, // U+%04d\n", ch);
-
-        // advance x
-        //x += ax*scale; // use true character width
-        x += c_w; // force mono-space width
-
-        // add kerning
-        if (ch < endCharIndex - 1) {
-            int kern;
-            kern = stbtt_GetCodepointKernAdvance(&info, ch, ch + 1);
-            x += kern * scale;
-        }
-    }
-
-    return b_w;
 }
