@@ -2,28 +2,36 @@
 #include <stdint.h>
 #include "ufont.hpp"
 
+#include "ufont_scaler.hpp"
 
+// 45152
 static constexpr uint8_t font[] = {
-    #include "../generator/build/Inconsolata-Regular-h32_r1.ufnt"
+    #include "../generator/build/Inconsolata-Regular-h32_r8.ufnt"
 };
 
 
 int main() {
 
-    static constexpr ufont::Reader fnt(font);
+    using scaler_t = ufont::FontScaler<128, 1, font>;
 
-    static_assert(fnt.raster('A').getPixel(0, 0) == 0, "okdjf");
+    static constexpr auto fnt = ufont::Reader(scaler_t::getBuffer());
+
+
+    /*static constexpr*/ //ufont::Reader fnt(font);
+
+    //static_assert(fnt.raster('A').getPixel(0, 0) == 0, "okdjf");
 
     //static constexpr CharRaster raster(font, '4');
 
-    //static_assert(fnt.width() == 15, "ERR");
-    static_assert(fnt.height() == 32, "ERR");
+    //static_assert(fnt.width() == 16, "ERR");
+    //static_assert(fnt.height() == 16, "ERR");
     //static_assert(fnt.resolution() == 4, "ERR");
 
-    for (char c = 'A'; c < 'D'; c++) {
+    char c = 'a';
+    for (int i = 0; i < 5; i++) {
 
-        //char c = '~';
         auto raster = fnt.raster(c);
+
         for (int y = 0; y < fnt.height(); y++) {
 
             for (int x = 0; x < fnt.width(); x++) {
@@ -51,7 +59,7 @@ int main() {
             }
             std::cout << std::endl;
         }
-
+        c++;
     }
 }
 
