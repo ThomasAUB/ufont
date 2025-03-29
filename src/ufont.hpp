@@ -18,10 +18,21 @@ namespace ufont {
             kBuffer(inBuffer) {}
 
         constexpr uint8_t getPixel(uint8_t inX, uint8_t inY) const {
+
             if (inX >= kCharWidth || inY >= kCharHeight) { return 0xFF; }
+
+            const uint8_t kShiftedRes = 1 << kResolutionShift;
             const uint32_t pix = (inX + inY * kCharWidth) << kResolutionShift;
-            const uint8_t val = (kBuffer[pix >> 3] >> (pix & 7));
-            return (val << 8) >> (1 << kResolutionShift);
+
+            uint8_t val =
+                (kBuffer[pix >> 3] >> (pix & 7)) &
+                ((1 << kShiftedRes) - 1);
+
+            if (kResolutionShift == 0) {
+                return ~(val - 1);
+            }
+
+            return (val << 8) >> kShiftedRes;
         }
 
         constexpr uint8_t width() const { return kCharWidth; }
@@ -65,6 +76,7 @@ namespace ufont {
 
                     // count the enabled chars before it
                     if (fieldIndex == 0) {
+                        // char is in the first 8 ones
                         inChar = 0;
                     }
                     else {
