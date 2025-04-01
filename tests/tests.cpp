@@ -14,8 +14,8 @@ TEST_CASE("basic ufont tests") {
 
     static constexpr ufont::Reader fnt(font_8);
 
-    static_assert(fnt.width() == 15, "ERR");
-    static_assert(fnt.height() == 32, "ERR");
+    static_assert(fnt.width() == 15, "Invalid pixel value");
+    static_assert(fnt.height() == 32, "Invalid pixel value");
     static_assert(fnt.raster('A').getPixel(0, 0) == 0, "Invalid pixel value");
     static_assert(fnt.raster('!').getPixel(fnt.width() / 2, fnt.height() / 2) == 255, "Invalid pixel value");
 
