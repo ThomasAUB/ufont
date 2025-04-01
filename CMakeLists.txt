@@ -1,30 +1,20 @@
-cmake_minimum_required(VERSION 3.15)            # CMake version check
+cmake_minimum_required(VERSION 3.13)            # CMake version check
+project(ufont VERSION 0.0.1 LANGUAGES CXX)      # Create project
+set(CMAKE_CXX_STANDARD 17)                      # Enable c++17 standard
 
-project(# Create project
-    ufont
-    VERSION 0.0.1
-    LANGUAGES CXX
-)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 17)
+set(CPACK_PROJECT_NAME ${PROJECT_NAME})
+set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 
-# set(CMAKE_C_FLAGS "STB_TRUETYPE_IMPLEMENTATION" "STB_IMAGE_WRITE_IMPLEMENTATION")
+# if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
-# math library on linux
-set(CMAKE_C_FLAGS "-lm")
+    enable_testing()
 
-include_directories(
-    raster
-    )
+    add_subdirectory(tests)
 
-
-
-# add_executable(ufont src/main.c)
-add_executable(ufont src/main.cpp)
-
-set(CPACK_PROJECT_NAME $ { PROJECT_NAME })
-set(CPACK_PROJECT_VERSION $ { PROJECT_VERSION })
-
-# enable_testing()
-# add_subdirectory(tests)
+    # add_test(ufont_tests  ufont_tests)
+    
+    # add_test(NAME ufontTests COMMAND $<TARGET_FILE:tests/tests.cpp>)
+    
+# endif()
